@@ -427,6 +427,21 @@ app.delete("/deletefeed/:id", verifyToken, async (req, res) => {
 
 
 
+// app.get("/logs", verifyToken, (req, res) => {
+//     const role = req.authData.user.role;
+//     if (role !== "superAdmin") {
+//         return res.status(403).send("You don't have permission to access logs.");
+//     }
+
+//     try {
+//         const logs = fs.readFileSync(path.join(__dirname, "logs.txt"), "utf-8");
+//         res.send(logs);
+//     } catch (error) {
+//         console.log("Error while reading logs:", error);
+//         res.status(500).send("Error while reading logs.");
+//     }
+// });
+
 app.get("/logs", verifyToken, (req, res) => {
     const role = req.authData.user.role;
     if (role !== "superAdmin") {
@@ -434,13 +449,20 @@ app.get("/logs", verifyToken, (req, res) => {
     }
 
     try {
-        const logs = fs.readFileSync(path.join(__dirname, "logs.txt"), "utf-8");
+        console.log("Current working directory:", process.cwd());
+
+        const filePath = path.join(__dirname, "logs.txt");
+        console.log("Attempting to read file:", filePath);
+        writeLog(`User with role '${role}' accessed logs at ${new Date().toISOString()}`);
+
+        const logs = fs.readFileSync(filePath, "utf-8");
         res.send(logs);
     } catch (error) {
         console.log("Error while reading logs:", error);
         res.status(500).send("Error while reading logs.");
     }
 });
+
 
 
 app.listen(port, () => {
