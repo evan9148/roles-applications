@@ -15,9 +15,9 @@ var port = 4000;
 
 
 // Function to write logs (used by Super Admin)
-function writeLog(log) {
-    fs.appendFileSync(path.join(__dirname, "logs.txt"), log + "\n");
-}
+// function writeLog(log) {
+//     fs.appendFileSync(path.join(__dirname, "logs.txt"), log + "\n");
+// }
 
 
 // Middleware to verify JWT token and extract user data from it
@@ -184,73 +184,62 @@ app.post("/api/loginuser", async (req, res) => {
 });
 
 
-
-
 app.post("/api/feed", verifyToken, (req, res) => {
-    const user_token = req.cookies.token;
-    jwt.verify(user_token, "secret_key", (err, authData) => {
-        console.log(authData)
-        if (err) {
-            res.sendStatus(403);
-            console.log(err)
-        }
-        else {
-            const role = authData.user.role;
-            console.log(role, "rrrr")
-            if (role !== "Admin" && role !== "superAdmin") {
-                res.status(403).send("You don't have permission to create feeds.");
-            } else {
-                const { name, url, description } = req.body;
-                try {
-                    // If the user is Super Admin, directly create the feed
-                    if (role === "superAdmin") {
-                        knex("feeds")
-                            .insert({
-                                name: name,
-                                url: url,
-                                description: description,
-                            })
-                            .then(() => {
-                                console.log("Feed created successfully by Super Admin.");
-                                res.send("Feed created successfully by Super Admin.");
-                            })
-                            .catch((error) => {
-                                console.log("Something went wrong while creating a feed.");
-                                res.status(500).send("Something went wrong while creating a feed.");
-                            });
-                    } else {
-                        const adminEmail = authData.user[0].email;
-                        const feedAccess = knex("admin_feed_access")
-                            .where("admin_email", adminEmail)
-                            .andWhere("feed_id", req.body.feedId);
+    const role = req.authData.user.role;
+    if (role !== "Admin" && role !== "superAdmin") {
+        return res.status(403).send("You don't have permission to create feeds.");
+    }
 
-                        if (feedAccess.length === 0) {
-                            res.status(403).send("You don't have permission to create this feed.");
-                        } else {
-                            knex("feeds")
-                                .insert({
-                                    name: name,
-                                    url: url,
-                                    description: description,
-                                })
-                                .then(() => {
-                                    console.log("Feed created successfully by Admin.");
-                                    res.send("Feed created successfully by Admin.");
-                                })
-                                .catch((error) => {
-                                    console.log("Something went wrong while creating a feed.");
-                                    res.status(500).send("Something went wrong while creating a feed.");
-                                });
-                        }
-                    }
-                } catch (error) {
+    const { name, url, description } = req.body;
+    try {
+        // If the user is Super Admin, directly create the feed
+        if (role === "superAdmin") {
+            knex("feeds")
+                .insert({
+                    name: name,
+                    url: url,
+                    description: description,
+                })
+                .then(() => {
+                    console.log("Feed created successfully by Super Admin.");
+                    writeLog(`Admin created a feed: ${name} (${url})`);
+                    res.send("Feed created successfully by Super Admin.");
+                })
+                .catch((error) => {
                     console.log("Something went wrong while creating a feed.");
                     res.status(500).send("Something went wrong while creating a feed.");
-                }
+                });
+        } else {
+            const adminEmail = req.authData.user.email;
+            const feedAccess = knex("admin_feed_access")
+                .where("admin_email", adminEmail)
+                .andWhere("feed_id", req.body.feedId);
+
+            if (feedAccess.length === 0) {
+                res.status(403).send("You don't have permission to create this feed.");
+            } else {
+                knex("feeds")
+                    .insert({
+                        name: name,
+                        url: url,
+                        description: description,
+                    })
+                    .then(() => {
+                        console.log("Feed created successfully by Admin.");
+                        writeLog(`Admin created a feed: ${name} (${url})`);
+                        res.send("Feed created successfully by Admin.");
+                    })
+                    .catch((error) => {
+                        console.log("Something went wrong while creating a feed.");
+                        res.status(500).send("Something went wrong while creating a feed.");
+                    });
             }
         }
-    })
-})
+    } catch (error) {
+        console.log("Something went wrong while creating a feed.");
+        res.status(500).send("Something went wrong while creating a feed.");
+    }
+});
 
 
 app.put("/updatefeed/:role", verifyToken, (req, res) => {
@@ -426,21 +415,24 @@ app.delete("/deletefeed/:id", verifyToken, async (req, res) => {
 });
 
 
+// Function to write logs (used by Super Admin)
+function writeLog(log) {
+    const now = new Date();
+    const logEntry = `[${now.toISOString()}] ${log}\n`;
 
-// app.get("/logs", verifyToken, (req, res) => {
-//     const role = req.authData.user.role;
-//     if (role !== "superAdmin") {
-//         return res.status(403).send("You don't have permission to access logs.");
-//     }
+    // Append log to the 'logs.txt' file
+    fs.appendFileSync(path.join(__dirname, "logs.txt"), logEntry);
 
-//     try {
-//         const logs = fs.readFileSync(path.join(__dirname, "logs.txt"), "utf-8");
-//         res.send(logs);
-//     } catch (error) {
-//         console.log("Error while reading logs:", error);
-//         res.status(500).send("Error while reading logs.");
-//     }
-// });
+    // Delete log entries older than 30 minutes
+    const thirtyMinutesAgo = now.getTime() - 30 * 60 * 1000;
+    const logs = fs.readFileSync(path.join(__dirname, "logs.txt"), "utf-8");
+    const lines = logs.split('\n').filter(line => {
+        const logTimestamp = new Date(line.slice(1, 25)).getTime();
+        return !isNaN(logTimestamp) && logTimestamp >= thirtyMinutesAgo;
+    });
+    fs.writeFileSync(path.join(__dirname, "logs.txt"), lines.join('\n'));
+}
+
 
 app.get("/logs", verifyToken, (req, res) => {
     const role = req.authData.user.role;
@@ -449,8 +441,8 @@ app.get("/logs", verifyToken, (req, res) => {
     }
 
     try {
-        console.log("Current working directory:", process.cwd());
-
+        // const logs = fs.readFileSync(path.join(__dirname, "logs.txt"), "utf-8");
+        // //         writeLog(`User with role '${role}' accessed logs at ${new Date().toISOString()}`);
         const filePath = path.join(__dirname, "logs.txt");
         console.log("Attempting to read file:", filePath);
         writeLog(`User with role '${role}' accessed logs at ${new Date().toISOString()}`);
