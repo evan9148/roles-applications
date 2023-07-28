@@ -1,0 +1,35 @@
+- # roles-applications
+
+This is a Node.js application that demonstrates how to implement authentication and authorization for API endpoints using Express.js, JSON Web Tokens (JWT), and MySQL as the database. The application has user registration, login, and various CRUD (Create, Read, Update, Delete) operations for users and feeds, based on their roles.
+
+Technologies Used: 
+      Node.js
+      Express.js
+      MySQL (using Knex.js)
+      JSON Web Tokens (JWT)
+      Bcrypt for password hashing
+      Body-parser for parsing incoming request bodies
+      Cookie-parser for handling cookies
+
+
+Running the Application
+    1. After setting up the database connection, run the application using npm start.
+    2. The application will run on port 4000 by default. You can change the port by modifying the port variable in index.js.
+
+
+Endpoints
+    1. POST /api/user - Register a new user with role (Admin, superAdmin, Basic). Passwords are securely hashed using bcrypt before storing in the database.
+    
+    2. POST /api/loginuser - Authenticate a user and issue a JWT token that will be used for further requests.
+    
+    3. POST /api/feed - Create a new feed. Only Admin and superAdmin roles can create feeds. If the user is superAdmin, the feed is directly created. If the user is an Admin, they must have access to the feed (as defined in the admin_feed_access table) to create it.
+    
+    4. PUT /updatefeed/:id - Update a feed. Only superAdmin and Admin with access to the feed can update it.
+    
+    5. PUT /update/:role - Update a user by their role. Only superAdmin can perform this operation.
+    
+    6. DELETE /delete/:role - Delete a user and associated users based on their role. Only superAdmin can perform this operation.
+    
+    7. DELETE /deletefeed/:id - Delete a feed. Only superAdmin and Admin with access to the feed can delete it.
+    
+    8. GET /logs - View logs. Only superAdmin can access the logs.
