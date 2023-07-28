@@ -1,4 +1,4 @@
-- # roles-applications
+# roles-applications
 
 This is a Node.js application that demonstrates how to implement authentication and authorization for API endpoints using Express.js, JSON Web Tokens (JWT), and MySQL as the database. The application has user registration, login, and various CRUD (Create, Read, Update, Delete) operations for users and feeds, based on their roles.
 
